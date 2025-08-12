@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  rate-limiter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rate-limiter:latest
+    container_name: rate-limiter-app
+    ports:
+      - "8080:8080"
+    environment:
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    # Override default command to run different classes if needed
+    # command: ["java", "-cp", "/app/classes", "com.example.ratelimiter.ExampleUsage"]
+    
+    # Uncomment below for interactive development
+    # stdin_open: true
+    # tty: true
+    
+  # Development service for running tests
+  rate-limiter-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: build  # Use build stage to have Maven available
+    image: rate-limiter:test
+    container_name: rate-limiter-test
+    working_dir: /app
+    command: ["mvn", "test"]
+    volumes:
+      - ./target:/app/target
+    profiles:
+      - test 
