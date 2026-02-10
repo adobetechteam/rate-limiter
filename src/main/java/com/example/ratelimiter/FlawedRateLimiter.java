@@ -12,6 +12,8 @@ public class FlawedRateLimiter implements RateLimiter {
     private final Object USER_LOCK = new Object();
 
     private final List<RequestRecord> allRequests = new ArrayList<>();
+
+    private final Map<String, Deque<Long>> userRequest = new ConcurrentHashMap<>();
     
     private volatile int totalRequestCount = 0;
     private boolean isEnabled = true;
@@ -31,34 +33,49 @@ public class FlawedRateLimiter implements RateLimiter {
         }
 
         long currentTime = System.currentTimeMillis();
-        
-        if (userId.hashCode() % 2 == 0) {
-            synchronized (GLOBAL_LOCK) {
-                return checkAndUpdateLimit(userId, currentTime);
-            }
-        } else {
-            return checkAndUpdateLimit(userId, currentTime);
-        }
+
+        return checkAndUpdateLimit(userId, currentTime);
+//        if (userId.hashCode() % 2 == 0) {
+//            synchronized (GLOBAL_LOCK) {
+//                return checkAndUpdateLimit(userId, currentTime);
+//            }
+//        } else {
+//            return checkAndUpdateLimit(userId, currentTime);
+//        }
     }
 
     private boolean checkAndUpdateLimit(String userId, long currentTime) {
         int recentRequestCount = 0;
-        
-        for (RequestRecord record : allRequests) {
-            if (record.userId.equals(userId) && 
-                (currentTime - record.timestamp) <= windowSizeMs) {
-                recentRequestCount++;
+
+
+        Deque<Long> timestamps = userRequest.computeIfAbsent(userId, k -> new ArrayDeque<>());
+
+        synchronized (timestamps) {
+            while (!timestamps.isEmpty() && timestamps.peekFirst() < windowSizeMs) {
+                timestamps.pollFirst();
             }
+            if(timestamps.size() >= maxRequestsPerWindow) {
+                return false;
+            }
+
+            timestamps.addLast(currentTime);
         }
 
-        if (recentRequestCount >= maxRequestsPerWindow) {
-            return false;
-        }
-
-        totalRequestCount = totalRequestCount + 1;
-
-        allRequests.add(new RequestRecord(userId, currentTime));
-        
+//        for (RequestRecord record : allRequests) {
+//            if (record.userId.equals(userId) &&
+//                (currentTime - record.timestamp) <= windowSizeMs) {
+//                recentRequestCount++;
+//            }
+//        }
+//
+//        if (recentRequestCount >= maxRequestsPerWindow) {
+//            return false;
+//        }
+//
+//        totalRequestCount = totalRequestCount + 1;
+//
+//        allRequests.add(new RequestRecord(userId, currentTime));
+//
         updateUserHistory(userId, currentTime);
         return true;
     }
