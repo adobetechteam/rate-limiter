@@ -51,7 +51,8 @@ public class FlawedRateLimiter implements RateLimiter {
         Deque<Long> timestamps = userRequest.computeIfAbsent(userId, k -> new ArrayDeque<>());
 
         synchronized (timestamps) {
-            while (!timestamps.isEmpty() && timestamps.peekFirst() < windowSizeMs) {
+            long cutoff = currentTime - windowSizeMs;
+            while (!timestamps.isEmpty() && timestamps.peekFirst() < cutoff) {
                 timestamps.pollFirst();
             }
             if(timestamps.size() >= maxRequestsPerWindow) {
