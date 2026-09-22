@@ -1,7 +1,11 @@
 package com.example.ratelimiter;
 
+import com.example.ratelimiter.support.MutableClock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -49,18 +53,21 @@ public class FlawedRateLimiterTest {
     }
 
     @Test
-    void testTimeWindowReset_Success() throws InterruptedException {
+    void testTimeWindowReset_Success() {
+        MutableClock clock = new MutableClock(Instant.EPOCH);
+        FlawedRateLimiter clockedLimiter = new FlawedRateLimiter(5, 1000, clock);
+
         // Fill up the limit
         for (int i = 0; i < 5; i++) {
-            assertTrue(rateLimiter.allowRequest("user1"));
+            assertTrue(clockedLimiter.allowRequest("user1"));
         }
-        assertFalse(rateLimiter.allowRequest("user1"));
+        assertFalse(clockedLimiter.allowRequest("user1"));
 
-        // Wait for window to pass
-        Thread.sleep(1100);
+        // Move time past the window instead of sleeping
+        clock.advance(Duration.ofMillis(1001));
 
         // Should allow requests again
-        assertTrue(rateLimiter.allowRequest("user1"));
+        assertTrue(clockedLimiter.allowRequest("user1"));
     }
 
     @Test
@@ -74,7 +81,12 @@ public class FlawedRateLimiterTest {
     }
 
     /**
-     * FAILURE CASES - These demonstrate the flaws
+     * FAILURE CASES - intentionally left empty.
+     *
+     * This starter file does not include tests that demonstrate the flaws.
+     * See the README's "Reported Issues" section for the symptoms that have
+     * been observed; writing the tests that expose their root causes is
+     * part of the exercise.
      */
 
 }
