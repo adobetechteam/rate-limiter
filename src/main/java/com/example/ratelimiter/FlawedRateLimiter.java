@@ -1,5 +1,6 @@
 package com.example.ratelimiter;
 
+import java.time.Clock;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -12,17 +13,23 @@ public class FlawedRateLimiter implements RateLimiter {
     private final Object USER_LOCK = new Object();
 
     private final List<RequestRecord> allRequests = new ArrayList<>();
-    
+
     private volatile int totalRequestCount = 0;
     private boolean isEnabled = true;
 
     private final Map<String, List<Long>> userRequestHistory = new ConcurrentHashMap<>();
     private final int maxRequestsPerWindow;
     private final long windowSizeMs;
+    private final Clock clock;
 
     public FlawedRateLimiter(int maxRequestsPerWindow, long windowSizeMs) {
+        this(maxRequestsPerWindow, windowSizeMs, Clock.systemUTC());
+    }
+
+    public FlawedRateLimiter(int maxRequestsPerWindow, long windowSizeMs, Clock clock) {
         this.maxRequestsPerWindow = maxRequestsPerWindow;
         this.windowSizeMs = windowSizeMs;
+        this.clock = clock;
     }
 
     public boolean allowRequest(String userId) {
@@ -30,8 +37,8 @@ public class FlawedRateLimiter implements RateLimiter {
             return true;
         }
 
-        long currentTime = System.currentTimeMillis();
-        
+        long currentTime = clock.millis();
+
         if (userId.hashCode() % 2 == 0) {
             synchronized (GLOBAL_LOCK) {
                 return checkAndUpdateLimit(userId, currentTime);
@@ -103,7 +110,7 @@ public class FlawedRateLimiter implements RateLimiter {
 
     public void cleanupOldRequests() {
         synchronized (GLOBAL_LOCK) {
-            long currentTime = System.currentTimeMillis();
+            long currentTime = clock.millis();
             allRequests.removeIf(record -> (currentTime - record.timestamp) > 3600000);
         }
     }
